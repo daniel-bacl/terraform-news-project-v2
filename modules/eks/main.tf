@@ -20,6 +20,8 @@ resource "aws_launch_template" "eks_nodes" {
   name_prefix   = "eks-node-"
   instance_type = "t3.medium"
 
+  key_name = "my-kp"
+
   network_interfaces {
     associate_public_ip_address = false
     security_groups             = var.security_group_ids
