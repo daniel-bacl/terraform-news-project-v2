@@ -17,7 +17,7 @@ resource "aws_security_group" "eks_sg" {
     to_port         = 22
     protocol        = "tcp"
     security_groups = [aws_security_group.bastion_sg.id]
-    description     = "SSH from bastion (SSM Session Manager 등)"
+    description     = "SSH from bastion (SSM Session Manager)"
   }
 
   egress {
