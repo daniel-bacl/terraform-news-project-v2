@@ -53,7 +53,7 @@ module "bastion" {
 
   ami_id                = "ami-0daee08993156ca1a"
   private_subnet_id     = module.subnet.private_subnet_ids[0]
-  security_group_id     = module.security_group.app_sg_id
+  security_group_id     = module.security_group.bastion_sg_id
   instance_profile_name = module.iam.bastion_ssm_profile_name
 
   depends_on = [
@@ -63,13 +63,14 @@ module "bastion" {
   ]
 }
 
-
 module "eks" {
   source        = "../../modules/eks"
   cluster_name  = "news-cluster"
   subnet_ids    = module.subnet.private_subnet_ids
   eks_role_arn  = module.iam.eks_cluster_role_arn
   node_role_arn = module.iam.eks_node_role_arn
+
+  security_group_ids = [module.security_group.eks_sg_id]
 
   depends_on = [
     module.subnet,
@@ -114,7 +115,7 @@ module "sql_initializer" {
   db_password              = var.lambda_env["DB_PASSWORD"]
   db_name                  = var.lambda_env["DB_NAME"]
   private_subnet_ids       = module.subnet.private_subnet_ids
-  lambda_security_group_id = module.security_group.app_sg_id
+  lambda_security_group_id = module.security_group.lambda_sg_id
   pymysql_layer_arn        = module.lambda_layer.pymysql_layer_arn
 
   depends_on = [
@@ -133,8 +134,8 @@ module "docker_images" {
   rds_port               = "3306"
   rds_username           = var.lambda_env["DB_USER"]
   rds_db_name            = var.lambda_env["DB_NAME"]
-  db_password = var.lambda_env["DB_PASSWORD"]
-  docker_image_uri = var.docker_image_uri
+  db_password            = var.lambda_env["DB_PASSWORD"]
+  docker_image_uri       = var.docker_image_uri
 }
 
 module "sending_news" {
@@ -146,12 +147,12 @@ module "sending_news" {
   filename          = "${path.module}/../../zip/lambda_function.zip"
   pymysql_layer_arn = module.lambda_layer.pymysql_layer_arn
   subnet_ids        = module.subnet.private_subnet_ids
-  security_group_id = module.security_group.app_sg_id
+  security_group_id = module.security_group.lambda_sg_id
 
   environment = merge(
     var.lambda_env,
     {
-      DB_HOST = module.rds.rds_endpoint
+      DB_HOST    = module.rds.rds_endpoint
       SES_SENDER = var.lambda_env["SES_SENDER"]
     }
   )
@@ -183,45 +184,45 @@ module "eventbridge_scheduler" {
   }
 }
 
-# ─────────────────────────────
-# Monitoring
-# ─────────────────────────────
+# # ─────────────────────────────
+# # Monitoring
+# # ─────────────────────────────
 
-module "monitoring" {
-  source                 = "../../modules/monitoring"
-  region                 = "ap-northeast-2"
-  rds_instance_id        = module.rds.rds_identifier
-  grafana_admin_password = "SuperSecret123"
-  lambda_function_names = {
-    sending_news = module.sending_news.lambda_function_name
-    crawler      = module.docker_images.lambda_function_name
-  }
-  alert_emails    = [
-    "95eksldpf@gmail.com",
-    "skdurtlxx@gmail.com",
-    "jintonylove@gmail.com",
-    "sunyj1225@gmail.com",
-    "oosuoos@gmail.com"
-  ]
+# module "monitoring" {
+#   source                 = "../../modules/monitoring"
+#   region                 = "ap-northeast-2"
+#   rds_instance_id        = module.rds.rds_identifier
+#   grafana_admin_password = "SuperSecret123"
+#   lambda_function_names = {
+#     sending_news = module.sending_news.lambda_function_name
+#     crawler      = module.docker_images.lambda_function_name
+#   }
+#   alert_emails = [
+#     "95eksldpf@gmail.com",
+#     "skdurtlxx@gmail.com",
+#     "jintonylove@gmail.com",
+#     "sunyj1225@gmail.com",
+#     "oosuoos@gmail.com"
+#   ]
 
-  eks_oidc_provider_arn = module.eks.oidc_provider_arn
-  eks_oidc_provider_url = module.eks.oidc_provider_url
+#   eks_oidc_provider_arn = module.eks.oidc_provider_arn
+#   eks_oidc_provider_url = module.eks.oidc_provider_url
 
-  grafana_service_account_name      = "grafana"
-  grafana_service_account_namespace = "monitoring"
-}
+#   grafana_service_account_name      = "grafana"
+#   grafana_service_account_namespace = "monitoring"
+# }
 
-# ─────────────────────────────
-# EKS 클러스터 정보 주입용 데이터 소스
-# ─────────────────────────────
+# # ─────────────────────────────
+# # EKS 클러스터 정보 주입용 데이터 소스
+# # ─────────────────────────────
 
-resource "helm_release" "kube_prometheus_stack" {
-  name             = "kube-prometheus-stack"
-  repository       = "https://prometheus-community.github.io/helm-charts"
-  chart            = "kube-prometheus-stack"
-  namespace        = "monitoring"
-  create_namespace = true
-  version          = "58.0.1"
+# resource "helm_release" "kube_prometheus_stack" {
+#   name             = "kube-prometheus-stack"
+#   repository       = "https://prometheus-community.github.io/helm-charts"
+#   chart            = "kube-prometheus-stack"
+#   namespace        = "monitoring"
+#   create_namespace = true
+#   version          = "58.0.1"
 
-  depends_on = [module.eks]
-}
+#   depends_on = [module.eks]
+# }

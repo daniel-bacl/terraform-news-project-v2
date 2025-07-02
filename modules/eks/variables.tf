@@ -14,3 +14,8 @@ variable "node_role_arn" {
   type = string
 }
 
+variable "security_group_ids" {
+  description = "Security group IDs to associate with the EKS cluster"
+  type        = list(string)
+  default     = []
+}
