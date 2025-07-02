@@ -15,27 +15,6 @@ resource "aws_eks_cluster" "this" {
   }
 }
 
-# Launch Template for NodeGroup
-resource "aws_launch_template" "eks_nodes" {
-  name_prefix   = "eks-node-"
-  instance_type = "t3.medium"
-
-  key_name = "my-kp"
-
-  network_interfaces {
-    associate_public_ip_address = false
-    security_groups             = var.security_group_ids
-  }
-
-  tag_specifications {
-    resource_type = "instance"
-    tags = {
-      Name = "${var.cluster_name}-node"
-    }
-  }
-}
-
-# EKS Node Group using Launch Template
 resource "aws_eks_node_group" "default" {
   cluster_name    = aws_eks_cluster.this.name
   node_group_name = "${var.cluster_name}-ng"
@@ -48,9 +27,10 @@ resource "aws_eks_node_group" "default" {
     min_size     = 1
   }
 
-  launch_template {
-    id      = aws_launch_template.eks_nodes.id
-    version = "$Latest"
+  instance_types = ["t3.medium"]
+
+  remote_access {
+    ec2_ssh_key = "my-kp"
   }
 
   tags = {
