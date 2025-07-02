@@ -1,0 +1,42 @@
+name: Terraform Apply
+
+on:
+  pull_request:
+    branches: [main]
+    types:
+      - closed  # PR이 '닫힐 때' (merge 포함)
+
+jobs:
+  apply:
+    name: Terraform Apply
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./envs/dev
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install zip utility
+        run: sudo apt-get install -y zip
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.12.1
+
+      - name: Generate tfvars from secrets
+        run: |
+          echo 'db_password = "${{ secrets.DB_PASSWORD }}"' > terraform.auto.tfvars
+
+      - name: Terraform Init
+        run: terraform init -reconfigure -input=false
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
